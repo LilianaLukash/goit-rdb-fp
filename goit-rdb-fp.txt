@@ -1,0 +1,123 @@
+﻿1.
+create schema pandemic;
+use pandemic;
+
+
+2.
+CREATE TABLE Country (
+        Code CHAR(3) PRIMARY KEY NOT NULL,
+    Entity VARCHAR(100) NOT NULL    
+);
+CREATE TABLE InfectiousCases (
+    Code CHAR(3) NOT NULL,
+    Year INT NOT NULL,
+    Number_yaws FLOAT,
+    polio_cases FLOAT,
+    cases_guinea_worm FLOAT,
+    Number_rabies FLOAT,
+    Number_malaria FLOAT,
+    Number_hiv FLOAT,
+    Number_tuberculosis FLOAT,
+    Number_smallpox FLOAT,
+    Number_cholera_cases FLOAT,
+    PRIMARY KEY (Code, Year),
+    FOREIGN KEY (Code) REFERENCES Country(Code)
+);
+Виявилось що крім країн є ще світові значення 
+OWID_WRL
+	World
+	
+
+Ці значення OWID_WRL ми замінемо на WRL щоб всі коди були трехлітерними.
+
+
+INSERT INTO Country (Code, Entity)
+SELECT DISTINCT 
+    REPLACE(Code, 'OWID_WRL', 'WRL') AS Code,
+    Entity
+FROM pandemic.infectious_cases;
+
+
+Відсутні цифри по захворюванням трактуємо за логікою як нульову захворюваність з цієї хвороби.
+
+
+Тому у нових таблицях поставимо там нулі:
+INSERT INTO InfectiousCases (
+    Code, Year, Number_yaws, polio_cases, cases_guinea_worm, Number_rabies, Number_malaria, Number_hiv, Number_tuberculosis, Number_smallpox, Number_cholera_cases
+)
+SELECT 
+    CASE 
+        WHEN Code = 'OWID_WRL' THEN 'WRL' 
+        ELSE Code 
+    END AS Code,
+    Year,
+    
+    CASE WHEN Number_yaws = '' OR Number_yaws IS NULL THEN 0 ELSE Number_yaws END AS Number_yaws,
+    CASE WHEN polio_cases = '' OR polio_cases IS NULL THEN 0 ELSE polio_cases END AS polio_cases,
+    CASE WHEN cases_guinea_worm = '' OR cases_guinea_worm IS NULL THEN 0 ELSE cases_guinea_worm END AS cases_guinea_worm,
+    CASE WHEN Number_rabies = '' OR Number_rabies IS NULL THEN 0 ELSE Number_rabies END AS Number_rabies,
+    CASE WHEN Number_malaria = '' OR Number_malaria IS NULL THEN 0 ELSE Number_malaria END AS Number_malaria,
+    CASE WHEN Number_hiv = '' OR Number_hiv IS NULL THEN 0 ELSE Number_hiv END AS Number_hiv,
+    CASE WHEN Number_tuberculosis = '' OR Number_tuberculosis IS NULL THEN 0 ELSE Number_tuberculosis END AS Number_tuberculosis,
+    CASE WHEN Number_smallpox = '' OR Number_smallpox IS NULL THEN 0 ELSE Number_smallpox END AS Number_smallpox,
+    CASE WHEN Number_cholera_cases = '' OR Number_cholera_cases IS NULL THEN 0 ELSE Number_cholera_cases END AS Number_cholera_cases
+
+
+FROM pandemic.infectious_cases;
+
+
+3.
+SELECT 
+    Code,
+    AVG(Number_rabies) AS Avg_Number_rabies,
+    MIN(Number_rabies) AS Min_Number_rabies,
+    MAX(Number_rabies) AS Max_Number_rabies,
+    SUM(Number_rabies) AS Sum_Number_rabies
+FROM 
+    InfectiousCases
+GROUP BY 
+    Code
+ORDER BY 
+    Avg_Number_rabies DESC
+LIMIT 10;
+
+
+4.
+SELECT 
+    Year,
+    DATE(CONCAT(Year, '-01-01')) AS First_January_Date,
+    CURRENT_DATE() AS Today,
+    TIMESTAMPDIFF(YEAR, DATE(CONCAT(Year, '-01-01')), CURRENT_DATE()) AS Year_Difference
+FROM 
+    infectiouscases;
+
+
+
+
+5.
+DELIMITER //
+
+
+CREATE FUNCTION CalculateYearDifference(input_year INT)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE first_january_date DATE;
+    DECLARE year_difference INT;
+
+
+    SET first_january_date = DATE(CONCAT(input_year, '-01-01'));
+
+
+    SET year_difference = TIMESTAMPDIFF(YEAR, first_january_date, CURRENT_DATE());
+
+
+    RETURN year_difference;
+END;
+//
+DELIMITER ;
+SELECT 
+    Year,
+    CalculateYearDifference(Year) AS Year_Difference
+FROM 
+    InfectiousCases;
